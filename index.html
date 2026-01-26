@@ -100,9 +100,10 @@
     btn.onclick = () => toggleMark(docSnap.id);
 
     nameCell.appendChild(btn);
-    nameCell.appendChild(del);
     tr.appendChild(nameCell);
 
+    const total = document.createElement("td");
+    tr.appendChild(total);
     for (let d = 1; d <= daysInMonth; d++) {
       const dateKey = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
       const td = document.createElement("td");
@@ -113,9 +114,7 @@
       tr.appendChild(td);
     }
 
-    const total = document.createElement("td");
     total.textContent = count;
-    tr.appendChild(total);
 
     table.appendChild(tr);
   }
@@ -149,5 +148,6 @@
 
 </body>
 </html>
+
 
 
