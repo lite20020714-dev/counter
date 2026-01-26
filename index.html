@@ -99,11 +99,6 @@
     btn.textContent = data.name;
     btn.onclick = () => toggleMark(docSnap.id);
 
-    const del = document.createElement("button");
-    del.textContent = "×";
-    del.className = "delete-btn";
-    del.onclick = () => deleteDoc(doc(db, "names", docSnap.id));
-
     nameCell.appendChild(btn);
     nameCell.appendChild(del);
     tr.appendChild(nameCell);
@@ -154,4 +149,5 @@
 
 </body>
 </html>
+
 
