@@ -20,18 +20,17 @@
     }
     .today { background: #ffeeba; }
     .circle { color: red; font-size: 18px; }
-    .delete-btn {
-      color: white;
-      background: red;
-      border: none;
-      margin-left: 6px;
-      cursor: pointer;
-    }
   </style>
 </head>
 <body>
 
 <h2>月間カウント</h2>
+
+<button id="prevMonth">←</button>
+<span id="ym"></span>
+<button id="nextMonth">→</button>
+
+<br><br>
 
 <input id="nameInput" placeholder="名前を追加" />
 <button id="addNameBtn">追加</button>
@@ -46,11 +45,9 @@
     getFirestore,
     collection,
     addDoc,
-    deleteDoc,
     doc,
     onSnapshot,
     updateDoc,
-    setDoc,
     getDoc
   } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
@@ -68,20 +65,29 @@
   const db = getFirestore(app);
 
   const today = new Date();
-  const year = today.getFullYear();
-  const month = today.getMonth(); // 0-based
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
   const todayKey = today.toISOString().slice(0, 10);
 
+  let currentYear = today.getFullYear();
+  let currentMonth = today.getMonth(); // 0-based
+
   const table = document.getElementById("calendar");
+  const ymSpan = document.getElementById("ym");
+
+  function getDaysInMonth(y, m) {
+    return new Date(y, m + 1, 0).getDate();
+  }
+
+  function updateYMLabel() {
+    ymSpan.textContent = `${currentYear}年 ${currentMonth + 1}月`;
+  }
 
   function renderHeader() {
     const tr = document.createElement("tr");
-    tr.innerHTML = `<th>名前</th>`;
-    tr.innerHTML += `<th>合計</th>`;
-    for (let d = 1; d <= daysInMonth; d++) {
-      const isToday = d === today.getDate();
-      tr.innerHTML += `<th class="${isToday ? "today" : ""}">${d}</th>`;
+    tr.innerHTML = `<th>名前</th><th>合計</th>`;
+
+    const days = getDaysInMonth(currentYear, currentMonth);
+    for (let d = 1; d <= days; d++) {
+      tr.innerHTML += `<th>${d}</th>`;
     }
     table.appendChild(tr);
   }
@@ -93,29 +99,40 @@
 
     let count = 0;
 
+    // 名前
     const nameCell = document.createElement("td");
     const btn = document.createElement("button");
     btn.className = "name-btn";
     btn.textContent = data.name;
     btn.onclick = () => toggleMark(docSnap.id);
-
     nameCell.appendChild(btn);
     tr.appendChild(nameCell);
 
-    const total = document.createElement("td");
-    tr.appendChild(total);
-    for (let d = 1; d <= daysInMonth; d++) {
-      const dateKey = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    // 合計（仮）
+    const totalCell = document.createElement("td");
+    tr.appendChild(totalCell);
+
+    const days = getDaysInMonth(currentYear, currentMonth);
+
+    for (let d = 1; d <= days; d++) {
+      const dateKey =
+        `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
       const td = document.createElement("td");
+
       if (marks[dateKey]) {
         td.innerHTML = `<span class="circle">◯</span>`;
         count++;
       }
+
+      // 今日だけ強調
+      if (dateKey === todayKey) {
+        td.classList.add("today");
+      }
+
       tr.appendChild(td);
     }
 
-    total.textContent = count;
-
+    totalCell.textContent = count;
     table.appendChild(tr);
   }
 
@@ -132,6 +149,21 @@
     await updateDoc(ref, { marks });
   }
 
+  function rerender() {
+    table.innerHTML = "";
+    updateYMLabel();
+    renderHeader();
+    snapshotCache.forEach(renderName);
+  }
+
+  let snapshotCache = [];
+
+  onSnapshot(collection(db, "names"), snap => {
+    snapshotCache = [];
+    snap.forEach(d => snapshotCache.push(d));
+    rerender();
+  });
+
   document.getElementById("addNameBtn").onclick = async () => {
     const name = document.getElementById("nameInput").value.trim();
     if (!name) return;
@@ -139,15 +171,24 @@
     document.getElementById("nameInput").value = "";
   };
 
-  onSnapshot(collection(db, "names"), snap => {
-    table.innerHTML = "";
-    renderHeader();
-    snap.forEach(renderName);
-  });
+  document.getElementById("prevMonth").onclick = () => {
+    currentMonth--;
+    if (currentMonth < 0) {
+      currentMonth = 11;
+      currentYear--;
+    }
+    rerender();
+  };
+
+  document.getElementById("nextMonth").onclick = () => {
+    currentMonth++;
+    if (currentMonth > 11) {
+      currentMonth = 0;
+      currentYear++;
+    }
+    rerender();
+  };
 </script>
 
 </body>
 </html>
-
-
-
