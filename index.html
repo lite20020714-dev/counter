@@ -78,11 +78,11 @@
   function renderHeader() {
     const tr = document.createElement("tr");
     tr.innerHTML = `<th>名前</th>`;
+    tr.innerHTML += `<th>合計</th>`;
     for (let d = 1; d <= daysInMonth; d++) {
       const isToday = d === today.getDate();
       tr.innerHTML += `<th class="${isToday ? "today" : ""}">${d}</th>`;
     }
-    tr.innerHTML += `<th>合計</th>`;
     table.appendChild(tr);
   }
 
@@ -154,3 +154,4 @@
 
 </body>
 </html>
+
