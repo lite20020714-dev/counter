@@ -1,157 +1,155 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<title>月間カウント管理</title>
-
-<style>
-  body {
-    font-family: sans-serif;
-  }
-  .row {
-    margin: 6px 0;
-  }
-  button.name {
-    padding: 6px 14px;
-    font-size: 16px;
-    cursor: pointer;
-  }
-  button.active {
-    background-color: #4caf50;
-    color: white;
-  }
-  .count {
-    margin-left: 10px;
-    font-weight: bold;
-  }
-</style>
+  <meta charset="UTF-8" />
+  <title>Play Count Calendar</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    table { border-collapse: collapse; }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 6px;
+      text-align: center;
+      min-width: 36px;
+    }
+    .name-btn {
+      cursor: pointer;
+      background: #f0f0f0;
+      border: none;
+      padding: 6px 10px;
+    }
+    .today { background: #ffeeba; }
+    .circle { color: red; font-size: 18px; }
+    .delete-btn {
+      color: white;
+      background: red;
+      border: none;
+      margin-left: 6px;
+      cursor: pointer;
+    }
+  </style>
 </head>
 <body>
 
-<h2 id="today"></h2>
+<h2>月間カウント</h2>
 
-<label>
-  月：
-  <select id="monthSelect"></select>
-</label>
+<input id="nameInput" placeholder="名前を追加" />
+<button id="addNameBtn">追加</button>
 
-<hr>
+<br><br>
 
-<div id="list"></div>
+<table id="calendar"></table>
 
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import {
-  getFirestore,
-  doc,
-  setDoc,
-  deleteDoc,
-  collection,
-  query,
-  where,
-  onSnapshot,
-  getDoc
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+  import {
+    getFirestore,
+    collection,
+    addDoc,
+    deleteDoc,
+    doc,
+    onSnapshot,
+    updateDoc,
+    setDoc,
+    getDoc
+  } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-/* ===== Firebase 設定（固定） ===== */
-const firebaseConfig = {
-  apiKey: "AIzaSyCTri3rZLiory39Om1bjXcdVfTow7dXrfE",
-  authDomain: "playcount-805bd.firebaseapp.com",
-  projectId: "playcount-805bd",
-  storageBucket: "playcount-805bd.firebasestorage.app",
-  messagingSenderId: "259970586499",
-  appId: "1:259970586499:web:6bd8ea72419279e91308b6",
-  measurementId: "G-H1BL5VPHEK"
-};
+  const firebaseConfig = {
+    apiKey: "AIzaSyCTri3rZLiory39Om1bjXcdVfTow7dXrfE",
+    authDomain: "playcount-805bd.firebaseapp.com",
+    projectId: "playcount-805bd",
+    storageBucket: "playcount-805bd.firebasestorage.app",
+    messagingSenderId: "259970586499",
+    appId: "1:259970586499:web:6bd8ea72419279e91308b6",
+    measurementId: "G-H1BL5VPHEK"
+  };
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
 
-/* ===== 設定 ===== */
-const names = ["Aさん", "Bさん", "Cさん"];
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = today.getMonth(); // 0-based
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const todayKey = today.toISOString().slice(0, 10);
 
-/* ===== 日付処理 ===== */
-const now = new Date();
-const today = now.toISOString().slice(0, 10);   // YYYY-MM-DD
+  const table = document.getElementById("calendar");
 
-document.getElementById("today").textContent =
-  `今日：${today}`;
+  function renderHeader() {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<th>名前</th>`;
+    for (let d = 1; d <= daysInMonth; d++) {
+      const isToday = d === today.getDate();
+      tr.innerHTML += `<th class="${isToday ? "today" : ""}">${d}</th>`;
+    }
+    tr.innerHTML += `<th>合計</th>`;
+    table.appendChild(tr);
+  }
 
-/* ===== 月セレクト ===== */
-const monthSelect = document.getElementById("monthSelect");
-for (let i = -3; i <= 3; i++) {
-  const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
-  const m = d.toISOString().slice(0, 7);
-  const opt = document.createElement("option");
-  opt.value = m;
-  opt.textContent = m;
-  if (m === today.slice(0, 7)) opt.selected = true;
-  monthSelect.appendChild(opt);
-}
+  function renderName(docSnap) {
+    const data = docSnap.data();
+    const marks = data.marks || {};
+    const tr = document.createElement("tr");
 
-let currentMonth = monthSelect.value;
-monthSelect.onchange = () => {
-  currentMonth = monthSelect.value;
-  render();
-};
+    let count = 0;
 
-/* ===== UI生成 ===== */
-const list = document.getElementById("list");
-
-function render() {
-  list.innerHTML = "";
-
-  names.forEach(name => {
-    const row = document.createElement("div");
-    row.className = "row";
-
+    const nameCell = document.createElement("td");
     const btn = document.createElement("button");
-    btn.className = "name";
-    btn.textContent = name;
+    btn.className = "name-btn";
+    btn.textContent = data.name;
+    btn.onclick = () => toggleMark(docSnap.id);
 
-    const countSpan = document.createElement("span");
-    countSpan.className = "count";
+    const del = document.createElement("button");
+    del.textContent = "×";
+    del.className = "delete-btn";
+    del.onclick = () => deleteDoc(doc(db, "names", docSnap.id));
 
-    row.appendChild(btn);
-    row.appendChild(countSpan);
-    list.appendChild(row);
+    nameCell.appendChild(btn);
+    nameCell.appendChild(del);
+    tr.appendChild(nameCell);
 
-    const todayId = `${name}_${today}`;
-    const todayRef = doc(db, "records", todayId);
-
-    // 今日の状態（色）
-    onSnapshot(todayRef, snap => {
-      btn.classList.toggle("active", snap.exists());
-    });
-
-    // 月間カウント
-    const q = query(
-      collection(db, "records"),
-      where("name", "==", name),
-      where("month", "==", currentMonth)
-    );
-
-    onSnapshot(q, snap => {
-      countSpan.textContent = ` ${snap.size}`;
-    });
-
-    // クリック処理（トグル）
-    btn.onclick = async () => {
-      const snap = await getDoc(todayRef);
-      if (snap.exists()) {
-        await deleteDoc(todayRef); // 取消
-      } else {
-        await setDoc(todayRef, {
-          name,
-          date: today,
-          month: today.slice(0, 7)
-        });
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateKey = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      const td = document.createElement("td");
+      if (marks[dateKey]) {
+        td.innerHTML = `<span class="circle">◯</span>`;
+        count++;
       }
-    };
-  });
-}
+      tr.appendChild(td);
+    }
 
-render();
+    const total = document.createElement("td");
+    total.textContent = count;
+    tr.appendChild(total);
+
+    table.appendChild(tr);
+  }
+
+  async function toggleMark(id) {
+    const ref = doc(db, "names", id);
+    const snap = await getDoc(ref);
+    const marks = snap.data().marks || {};
+
+    if (marks[todayKey]) {
+      delete marks[todayKey];
+    } else {
+      marks[todayKey] = true;
+    }
+    await updateDoc(ref, { marks });
+  }
+
+  document.getElementById("addNameBtn").onclick = async () => {
+    const name = document.getElementById("nameInput").value.trim();
+    if (!name) return;
+    await addDoc(collection(db, "names"), { name, marks: {} });
+    document.getElementById("nameInput").value = "";
+  };
+
+  onSnapshot(collection(db, "names"), snap => {
+    table.innerHTML = "";
+    renderHeader();
+    snap.forEach(renderName);
+  });
 </script>
 
 </body>
