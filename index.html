@@ -64,8 +64,8 @@
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
 
-  const today = new Date();
-  const todayKey = today.toISOString().slice(0, 10);
+  let today = new Date();
+  let todayKey = today.toISOString().slice(0, 10);
 
   let currentYear = today.getFullYear();
   let currentMonth = today.getMonth(); // 0-based
@@ -192,3 +192,4 @@
 
 </body>
 </html>
+
