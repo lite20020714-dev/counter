@@ -13,13 +13,14 @@
       min-width: 36px;
     }
     .name-btn {
-      cursor: pointer;
+      cursor: default;
       background: #f0f0f0;
       border: none;
       padding: 6px 10px;
     }
     .today { background: #ffeeba; }
     .circle { color: red; font-size: 18px; }
+    td.clickable { cursor: pointer; }
   </style>
 </head>
 <body>
@@ -51,6 +52,7 @@
     getDoc
   } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
+  /* Firebase */
   const firebaseConfig = {
     apiKey: "AIzaSyCTri3rZLiory39Om1bjXcdVfTow7dXrfE",
     authDomain: "playcount-805bd.firebaseapp.com",
@@ -64,10 +66,10 @@
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
 
+  /* 日付状態（★重要） */
   const now = new Date();
   let currentYear = now.getFullYear();
-  let currentMonth = now.getMonth(); // 0-based
-
+  let currentMonth = now.getMonth(); // 0始まり
 
   const table = document.getElementById("calendar");
   const ymSpan = document.getElementById("ym");
@@ -98,38 +100,38 @@
 
     let count = 0;
 
-    // 名前
+    /* 名前 */
     const nameCell = document.createElement("td");
     const btn = document.createElement("button");
     btn.className = "name-btn";
     btn.textContent = data.name;
-    btn.onclick = () => toggleMark(docSnap.id);
     nameCell.appendChild(btn);
     tr.appendChild(nameCell);
 
-    // 合計（仮）
+    /* 合計 */
     const totalCell = document.createElement("td");
     tr.appendChild(totalCell);
 
     const days = getDaysInMonth(currentYear, currentMonth);
+    const todayKey = new Date().toISOString().slice(0, 10);
 
     for (let d = 1; d <= days; d++) {
       const dateKey =
         `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+
       const td = document.createElement("td");
+      td.classList.add("clickable");
 
       if (marks[dateKey]) {
         td.innerHTML = `<span class="circle">◯</span>`;
         count++;
       }
 
-      // 今日だけ強調
-      const nowKey = new Date().toISOString().slice(0, 10);
-
-      if (dateKey === nowKey) {
-      td.classList.add("today");
+      if (dateKey === todayKey) {
+        td.classList.add("today");
       }
 
+      td.onclick = () => toggleMark(docSnap.id, dateKey);
 
       tr.appendChild(td);
     }
@@ -138,19 +140,17 @@
     table.appendChild(tr);
   }
 
-  async function toggleMark(id) {
-    const now = new Date();
-    const todayKey = now.toISOString().slice(0, 10);
-    
+  async function toggleMark(id, dateKey) {
     const ref = doc(db, "names", id);
     const snap = await getDoc(ref);
     const marks = snap.data().marks || {};
 
-    if (marks[todayKey]) {
-      delete marks[todayKey];
+    if (marks[dateKey]) {
+      delete marks[dateKey];
     } else {
-      marks[todayKey] = true;
+      marks[dateKey] = true;
     }
+
     await updateDoc(ref, { marks });
   }
 
@@ -170,10 +170,11 @@
   });
 
   document.getElementById("addNameBtn").onclick = async () => {
-    const name = document.getElementById("nameInput").value.trim();
+    const input = document.getElementById("nameInput");
+    const name = input.value.trim();
     if (!name) return;
     await addDoc(collection(db, "names"), { name, marks: {} });
-    document.getElementById("nameInput").value = "";
+    input.value = "";
   };
 
   document.getElementById("prevMonth").onclick = () => {
@@ -197,8 +198,3 @@
 
 </body>
 </html>
-
-
-
-
-
