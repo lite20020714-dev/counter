@@ -1,118 +1,157 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <title>遊んだ回数管理</title>
-  <style>
-    table {
-      border-collapse: collapse;
-      margin-top: 10px;
-    }
-    th, td {
-      border: 1px solid #ccc;
-      padding: 6px 12px;
-      text-align: center;
-    }
-    button {
-      margin: 0 4px;
-    }
-  </style>
+<meta charset="UTF-8">
+<title>月間カウント管理</title>
+
+<style>
+  body {
+    font-family: sans-serif;
+  }
+  .row {
+    margin: 6px 0;
+  }
+  button.name {
+    padding: 6px 14px;
+    font-size: 16px;
+    cursor: pointer;
+  }
+  button.active {
+    background-color: #4caf50;
+    color: white;
+  }
+  .count {
+    margin-left: 10px;
+    font-weight: bold;
+  }
+</style>
 </head>
 <body>
 
-<h2>遊んだ回数管理</h2>
+<h2 id="today"></h2>
 
-<input id="nameInput" placeholder="名前">
-<button id="addBtn">追加</button>
+<label>
+  月：
+  <select id="monthSelect"></select>
+</label>
 
-<table>
-  <thead>
-    <tr>
-      <th>名前</th>
-      <th>回数</th>
-      <th>操作</th>
-    </tr>
-  </thead>
-  <tbody id="tableBody"></tbody>
-</table>
+<hr>
+
+<div id="list"></div>
 
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-  import {
-    getFirestore,
-    collection,
-    addDoc,
-    doc,
-    updateDoc,
-    onSnapshot,
-    increment
-  } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import {
+  getFirestore,
+  doc,
+  setDoc,
+  deleteDoc,
+  collection,
+  query,
+  where,
+  onSnapshot,
+  getDoc
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyCTri3rZLiory39Om1bjXcdVfTow7dXrfE",
-    authDomain: "playcount-805bd.firebaseapp.com",
-    projectId: "playcount-805bd",
-  };
+/* ===== Firebase 設定（固定） ===== */
+const firebaseConfig = {
+  apiKey: "AIzaSyCTri3rZLiory39Om1bjXcdVfTow7dXrfE",
+  authDomain: "playcount-805bd.firebaseapp.com",
+  projectId: "playcount-805bd",
+  storageBucket: "playcount-805bd.firebasestorage.app",
+  messagingSenderId: "259970586499",
+  appId: "1:259970586499:web:6bd8ea72419279e91308b6",
+  measurementId: "G-H1BL5VPHEK"
+};
 
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
-  const usersRef = collection(db, "users");
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
-  // 名前追加
-  document.getElementById("addBtn").onclick = async () => {
-    const name = nameInput.value.trim();
-    if (!name) return;
+/* ===== 設定 ===== */
+const names = ["Aさん", "Bさん", "Cさん"];
 
-    await addDoc(usersRef, {
-      name: name,
-      point: 0
+/* ===== 日付処理 ===== */
+const now = new Date();
+const today = now.toISOString().slice(0, 10);   // YYYY-MM-DD
+
+document.getElementById("today").textContent =
+  `今日：${today}`;
+
+/* ===== 月セレクト ===== */
+const monthSelect = document.getElementById("monthSelect");
+for (let i = -3; i <= 3; i++) {
+  const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+  const m = d.toISOString().slice(0, 7);
+  const opt = document.createElement("option");
+  opt.value = m;
+  opt.textContent = m;
+  if (m === today.slice(0, 7)) opt.selected = true;
+  monthSelect.appendChild(opt);
+}
+
+let currentMonth = monthSelect.value;
+monthSelect.onchange = () => {
+  currentMonth = monthSelect.value;
+  render();
+};
+
+/* ===== UI生成 ===== */
+const list = document.getElementById("list");
+
+function render() {
+  list.innerHTML = "";
+
+  names.forEach(name => {
+    const row = document.createElement("div");
+    row.className = "row";
+
+    const btn = document.createElement("button");
+    btn.className = "name";
+    btn.textContent = name;
+
+    const countSpan = document.createElement("span");
+    countSpan.className = "count";
+
+    row.appendChild(btn);
+    row.appendChild(countSpan);
+    list.appendChild(row);
+
+    const todayId = `${name}_${today}`;
+    const todayRef = doc(db, "records", todayId);
+
+    // 今日の状態（色）
+    onSnapshot(todayRef, snap => {
+      btn.classList.toggle("active", snap.exists());
     });
 
-    nameInput.value = "";
-  };
+    // 月間カウント
+    const q = query(
+      collection(db, "records"),
+      where("name", "==", name),
+      where("month", "==", currentMonth)
+    );
 
-  // ＋／−処理
-  async function changePoint(id, diff) {
-    const ref = doc(db, "users", id);
-    await updateDoc(ref, {
-      point: increment(diff)
+    onSnapshot(q, snap => {
+      countSpan.textContent = ` ${snap.size}`;
     });
-  }
 
-  // リアルタイムでtable再描画
-  onSnapshot(usersRef, (snapshot) => {
-    tableBody.innerHTML = "";
-
-    snapshot.forEach(docSnap => {
-      const data = docSnap.data();
-      const tr = document.createElement("tr");
-
-      const nameTd = document.createElement("td");
-      nameTd.textContent = data.name;
-
-      const pointTd = document.createElement("td");
-      pointTd.textContent = data.point;
-
-      const ctrlTd = document.createElement("td");
-
-      const plusBtn = document.createElement("button");
-      plusBtn.textContent = "+";
-      plusBtn.onclick = () => changePoint(docSnap.id, +1);
-
-      const minusBtn = document.createElement("button");
-      minusBtn.textContent = "−";
-      minusBtn.onclick = () => changePoint(docSnap.id, -1);
-
-      ctrlTd.appendChild(plusBtn);
-      ctrlTd.appendChild(minusBtn);
-
-      tr.appendChild(nameTd);
-      tr.appendChild(pointTd);
-      tr.appendChild(ctrlTd);
-
-      tableBody.appendChild(tr);
-    });
+    // クリック処理（トグル）
+    btn.onclick = async () => {
+      const snap = await getDoc(todayRef);
+      if (snap.exists()) {
+        await deleteDoc(todayRef); // 取消
+      } else {
+        await setDoc(todayRef, {
+          name,
+          date: today,
+          month: today.slice(0, 7)
+        });
+      }
+    };
   });
+}
+
+render();
 </script>
 
 </body>
