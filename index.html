@@ -30,6 +30,8 @@
 <span id="ym"></span>
 <button id="nextMonth">→</button>
 
+<div id="todayLabel" style="margin-top:8px; font-weight:bold;"></div>
+
 <br><br>
 
 <input id="nameInput" placeholder="名前を追加" />
@@ -81,6 +83,16 @@
 
   function getDaysInMonth(y, m) {
     return new Date(y, m + 1, 0).getDate();
+  }
+
+  // ★ 追加：今日の日付表示
+  function updateTodayLabel() {
+    const today = new Date();
+    const y = today.getFullYear();
+    const m = today.getMonth() + 1;
+    const d = today.getDate();
+    document.getElementById("todayLabel").textContent =
+      `今日：${y}年${m}月${d}日`;
   }
 
   function updateYMLabel() {
@@ -204,3 +216,4 @@
 
 </body>
 </html>
+
