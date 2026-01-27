@@ -13,14 +13,13 @@
       min-width: 36px;
     }
     .name-btn {
-      cursor: default;
+      cursor: pointer;
       background: #f0f0f0;
       border: none;
       padding: 6px 10px;
     }
     .today { background: #ffeeba; }
     .circle { color: red; font-size: 18px; }
-    td.clickable { cursor: pointer; }
   </style>
 </head>
 <body>
@@ -52,7 +51,6 @@
     getDoc
   } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-  /* Firebase */
   const firebaseConfig = {
     apiKey: "AIzaSyCTri3rZLiory39Om1bjXcdVfTow7dXrfE",
     authDomain: "playcount-805bd.firebaseapp.com",
@@ -66,13 +64,20 @@
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
 
-  /* 日付状態（★重要） */
   const now = new Date();
   let currentYear = now.getFullYear();
-  let currentMonth = now.getMonth(); // 0始まり
+  let currentMonth = now.getMonth(); // 0-based
 
   const table = document.getElementById("calendar");
   const ymSpan = document.getElementById("ym");
+
+  // ★ 修正：ローカル時間基準の日付キーを作る関数
+  function getLocalDateKey(date = new Date()) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
 
   function getDaysInMonth(y, m) {
     return new Date(y, m + 1, 0).getDate();
@@ -100,38 +105,38 @@
 
     let count = 0;
 
-    /* 名前 */
+    // 名前
     const nameCell = document.createElement("td");
     const btn = document.createElement("button");
     btn.className = "name-btn";
     btn.textContent = data.name;
+    btn.onclick = () => toggleMark(docSnap.id);
     nameCell.appendChild(btn);
     tr.appendChild(nameCell);
 
-    /* 合計 */
+    // 合計
     const totalCell = document.createElement("td");
     tr.appendChild(totalCell);
 
     const days = getDaysInMonth(currentYear, currentMonth);
-    const todayKey = new Date().toISOString().slice(0, 10);
+
+    // ★ 修正：今日キーもローカル基準で統一
+    const todayKey = getLocalDateKey();
 
     for (let d = 1; d <= days; d++) {
       const dateKey =
         `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-
       const td = document.createElement("td");
-      td.classList.add("clickable");
 
       if (marks[dateKey]) {
         td.innerHTML = `<span class="circle">◯</span>`;
         count++;
       }
 
+      // 今日だけ強調
       if (dateKey === todayKey) {
         td.classList.add("today");
       }
-
-      td.onclick = () => toggleMark(docSnap.id, dateKey);
 
       tr.appendChild(td);
     }
@@ -140,17 +145,19 @@
     table.appendChild(tr);
   }
 
-  async function toggleMark(id, dateKey) {
+  // ★ 修正：toISOString() を完全に廃止
+  async function toggleMark(id) {
+    const todayKey = getLocalDateKey();
+
     const ref = doc(db, "names", id);
     const snap = await getDoc(ref);
     const marks = snap.data().marks || {};
 
-    if (marks[dateKey]) {
-      delete marks[dateKey];
+    if (marks[todayKey]) {
+      delete marks[todayKey];
     } else {
-      marks[dateKey] = true;
+      marks[todayKey] = true;
     }
-
     await updateDoc(ref, { marks });
   }
 
@@ -170,11 +177,10 @@
   });
 
   document.getElementById("addNameBtn").onclick = async () => {
-    const input = document.getElementById("nameInput");
-    const name = input.value.trim();
+    const name = document.getElementById("nameInput").value.trim();
     if (!name) return;
     await addDoc(collection(db, "names"), { name, marks: {} });
-    input.value = "";
+    document.getElementById("nameInput").value = "";
   };
 
   document.getElementById("prevMonth").onclick = () => {
