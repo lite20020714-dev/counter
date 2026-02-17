@@ -20,6 +20,37 @@
     }
     .today { background: #ffeeba; }
     .circle { color: red; font-size: 18px; }
+
+    /* ★ 追加：エイプリルフール強演出 */
+    .glitch { /* ★ 追加 */
+      animation: shake 0.1s infinite; /* ★ 追加 */
+      filter: invert(1) hue-rotate(180deg); /* ★ 追加 */
+    } /* ★ 追加 */
+
+    @keyframes shake { /* ★ 追加 */
+      0% { transform: translate(2px, -2px); } /* ★ 追加 */
+      25% { transform: translate(-2px, 2px); } /* ★ 追加 */
+      50% { transform: translate(2px, 2px); } /* ★ 追加 */
+      75% { transform: translate(-2px, -2px); } /* ★ 追加 */
+      100% { transform: translate(0, 0); } /* ★ 追加 */
+    } /* ★ 追加 */
+
+    #errorOverlay { /* ★ 追加 */
+      position: fixed; /* ★ 追加 */
+      top: 0; /* ★ 追加 */
+      left: 0; /* ★ 追加 */
+      width: 100%; /* ★ 追加 */
+      height: 100%; /* ★ 追加 */
+      background: black; /* ★ 追加 */
+      color: red; /* ★ 追加 */
+      display: flex; /* ★ 追加 */
+      justify-content: center; /* ★ 追加 */
+      align-items: center; /* ★ 追加 */
+      font-size: 48px; /* ★ 追加 */
+      font-weight: bold; /* ★ 追加 */
+      z-index: 9999; /* ★ 追加 */
+      opacity: 0.95; /* ★ 追加 */
+    } /* ★ 追加 */
   </style>
 </head>
 <body>
@@ -68,12 +99,11 @@
 
   const now = new Date();
   let currentYear = now.getFullYear();
-  let currentMonth = now.getMonth(); // 0-based
+  let currentMonth = now.getMonth();
 
   const table = document.getElementById("calendar");
   const ymSpan = document.getElementById("ym");
 
-  // ★ 修正：ローカル時間基準の日付キーを作る関数
   function getLocalDateKey(date = new Date()) {
     const y = date.getFullYear();
     const m = String(date.getMonth() + 1).padStart(2, "0");
@@ -85,7 +115,6 @@
     return new Date(y, m + 1, 0).getDate();
   }
 
-  // ★ 追加：今日の日付表示
   function updateTodayLabel() {
     const today = new Date();
     const y = today.getFullYear();
@@ -102,7 +131,6 @@
   function renderHeader() {
     const tr = document.createElement("tr");
     tr.innerHTML = `<th>名前</th><th>合計</th>`;
-
     const days = getDaysInMonth(currentYear, currentMonth);
     for (let d = 1; d <= days; d++) {
       tr.innerHTML += `<th>${d}</th>`;
@@ -114,25 +142,25 @@
     const data = docSnap.data();
     const marks = data.marks || {};
     const tr = document.createElement("tr");
-
     let count = 0;
 
-    // 名前
     const nameCell = document.createElement("td");
     const btn = document.createElement("button");
     btn.className = "name-btn";
     btn.textContent = data.name;
-    btn.onclick = () => toggleMark(docSnap.id);
+
+    btn.onclick = async () => { // ★ 追加
+      await triggerAprilFoolsEffect(); // ★ 追加
+      toggleMark(docSnap.id); // ★ 追加
+    }; // ★ 追加
+
     nameCell.appendChild(btn);
     tr.appendChild(nameCell);
 
-    // 合計
     const totalCell = document.createElement("td");
     tr.appendChild(totalCell);
 
     const days = getDaysInMonth(currentYear, currentMonth);
-
-    // ★ 修正：今日キーもローカル基準で統一
     const todayKey = getLocalDateKey();
 
     for (let d = 1; d <= days; d++) {
@@ -145,7 +173,6 @@
         count++;
       }
 
-      // 今日だけ強調
       if (dateKey === todayKey) {
         td.classList.add("today");
       }
@@ -157,10 +184,8 @@
     table.appendChild(tr);
   }
 
-  // ★ 修正：toISOString() を完全に廃止
   async function toggleMark(id) {
     const todayKey = getLocalDateKey();
-
     const ref = doc(db, "names", id);
     const snap = await getDoc(ref);
     const marks = snap.data().marks || {};
@@ -176,6 +201,7 @@
   function rerender() {
     table.innerHTML = "";
     updateYMLabel();
+    updateTodayLabel();
     renderHeader();
     snapshotCache.forEach(renderName);
   }
@@ -212,8 +238,47 @@
     }
     rerender();
   };
+
+  // ★ 追加：エイプリルフール判定
+  function isAprilFools() { // ★ 追加
+    const now = new Date(); // ★ 追加
+    return now.getMonth() === 3 && now.getDate() === 1; // ★ 追加
+  } // ★ 追加
+
+  // ★ 追加：強演出
+  function triggerAprilFoolsEffect() { // ★ 追加
+    if (!isAprilFools()) return Promise.resolve(); // ★ 追加
+
+    return new Promise(resolve => { // ★ 追加
+
+      document.body.classList.add("glitch"); // ★ 追加
+
+      const overlay = document.createElement("div"); // ★ 追加
+      overlay.id = "errorOverlay"; // ★ 追加
+      overlay.textContent = "DATA CORRUPTED"; // ★ 追加
+      document.body.appendChild(overlay); // ★ 追加
+
+      document.querySelectorAll(".circle").forEach(el => { // ★ 追加
+        el.style.visibility = "hidden"; // ★ 追加
+      }); // ★ 追加
+
+      document.querySelectorAll("tr").forEach(tr => { // ★ 追加
+        const totalCell = tr.children[1]; // ★ 追加
+        if (totalCell && totalCell.tagName === "TD") { // ★ 追加
+          totalCell.textContent = "9999"; // ★ 追加
+        } // ★ 追加
+      }); // ★ 追加
+
+      setTimeout(() => { // ★ 追加
+        document.body.classList.remove("glitch"); // ★ 追加
+        overlay.remove(); // ★ 追加
+        resolve(); // ★ 追加
+      }, 2000); // ★ 追加
+
+    }); // ★ 追加
+  } // ★ 追加
+
 </script>
 
 </body>
 </html>
-
