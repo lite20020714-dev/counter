@@ -272,16 +272,19 @@
         } // ★ 追加
       }); // ★ 追加
 
-      setTimeout(() => { // ★ 追加
-        document.body.classList.remove("glitch"); // ★ 追加
-        overlay.remove(); // ★ 追加
-
+      const glitchTime = 2000;
+      const freezeTime = 2000;
+      
+      setTimeout(() => {
+        document.body.classList.remove("glitch");
+        overlay.remove();
+      
         setTimeout(() => {
           resolve();
-        }, 2000);
-        
-        resolve(); // ★ 追加
-      }, 2000); // ★ 追加
+        }, freezeTime);
+      
+      }, glitchTime);
+
 
     }); // ★ 追加
   } // ★ 追加
@@ -291,6 +294,7 @@
 
 </body>
 </html>
+
 
 
 
