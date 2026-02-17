@@ -242,7 +242,10 @@
   // ★ 追加：エイプリルフール判定
   function isAprilFools() { // ★ 追加
     const now = new Date(); // ★ 追加
-    return now.getMonth() === 3 && now.getDate() === 1; // ★ 追加
+    const params = new URLSearchParams(window.location.search);
+    const testMode = params.get("test") === "1";
+    
+    return testMode ||  (now.getMonth() === 3 && now.getDate() === 1); // ★ 追加
   } // ★ 追加
 
   // ★ 追加：強演出
@@ -278,11 +281,10 @@
     }); // ★ 追加
   } // ★ 追加
 
-  window.triggerAprilFoolsEffect = triggerAprilFoolsEffect; // ★ 追加
-
   
 </script>
 
 </body>
 </html>
+
 
